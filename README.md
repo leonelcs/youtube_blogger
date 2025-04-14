@@ -11,6 +11,7 @@ This application automatically converts YouTube videos into well-formatted blog 
 - **User-Friendly Interface**: Simple web-based interface built with Gradio
 - **Markdown Formatting**: Outputs blog posts with proper Markdown formatting
 - **Error Handling**: Comprehensive error messages for various scenarios (missing transcripts, private videos, etc.)
+- **Custom Writing Style**: Specify any blog URL as a reference for the AI to mimic that writing style
 
 ## Installation
 

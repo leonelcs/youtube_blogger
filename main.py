@@ -32,10 +32,10 @@ Você é um assistente de IA especializado em transformar transcrições de víd
 
 **Objetivo:** Reescrever a seguinte transcrição de vídeo do YouTube em um post de blog.
 
-**Estilo Desejado:** O post deve seguir o estilo e tom do blog encontrado em: https://julianagabriel.com.br/blog/
+**Estilo Desejado:** O post deve seguir o estilo e tom do blog encontrado em: {blog_style_url}
 Isso significa que o post deve ser:
 *   **Informativo e Educacional:** Explicar conceitos de forma clara.
-*   **Empático e Acessível:** Usar uma linguagem que conecte com o leitor, como um profissional de saúde (por exemplo, uma endocrinologista) falando com o público.
+*   **Empático e Acessível:** Usar uma linguagem que conecte com o leitor, como um profissional falando com o público.
 *   **Conversacional (Moderado):** Manter um tom profissional, mas não excessivamente formal ou robótico. Pode incluir perguntas retóricas ou dirigir-se ao leitor ocasionalmente.
 *   **Bem Estruturado:** Usar títulos, subtítulos e listas (bullet points) para organizar a informação e facilitar a leitura.
 *   **Focado na Mensagem Principal:** Extrair os pontos-chave da transcrição e apresentá-los de forma coesa.
@@ -56,12 +56,13 @@ Com base na transcrição e no estilo de blog de exemplo fornecido, gere o post 
 prompt = ChatPromptTemplate.from_template(blog_post_prompt_template)
 
 # --- Function to Process URL with streaming ---
-def create_blog_post_from_youtube_streaming(youtube_url: str):
+def create_blog_post_from_youtube_streaming(youtube_url: str, blog_style_url: str = "https://julianagabriel.com.br/blog/"):
     """
     Extracts transcript from a YouTube URL and generates a blog post with streaming output.
     
     Args:
         youtube_url: The URL of the YouTube video.
+        blog_style_url: The URL of a blog to mimic the writing style from.
         
     Yields:
         Progress updates and content chunks as they're generated.
@@ -90,7 +91,7 @@ def create_blog_post_from_youtube_streaming(youtube_url: str):
         # Get transcript content
         transcript_content = docs[0].page_content
         elapsed = int(time.time() - start_time)
-        yield f"Transcrição carregada com sucesso! ({elapsed}s)\n\nGerando post do blog..."
+        yield f"Transcrição carregada com sucesso! ({elapsed}s)\n\nGerando post do blog seguindo o estilo de {blog_style_url}..."
         
         # Set up streaming callbacks
         class GradioCallbackHandler(StreamingStdOutCallbackHandler):
@@ -117,10 +118,11 @@ def create_blog_post_from_youtube_streaming(youtube_url: str):
         # Create streaming chain
         streaming_chain = prompt | streaming_llm | StrOutputParser()
         
-        # Process with streaming
+        # Process with streaming - now including blog_style_url
         for chunk in streaming_chain.stream({
             "transcript": transcript_content,
-            "youtube_url": youtube_url
+            "youtube_url": youtube_url,
+            "blog_style_url": blog_style_url
         }):
             elapsed = int(time.time() - start_time)
             yield f"Gerando post do blog... ({elapsed}s)\n\n{chunk}"
@@ -145,20 +147,23 @@ def create_blog_post_from_youtube_streaming(youtube_url: str):
         yield error_msg
 
 # --- Gradio Interface ---
-def process_url_streaming(youtube_url):
+def process_url_streaming(youtube_url, blog_style_url):
     """Function to process YouTube URL from Gradio interface with streaming output"""
     if not youtube_url or "youtube.com" not in youtube_url and "youtu.be" not in youtube_url:
         yield "Por favor, insira uma URL válida do YouTube."
         return
     
-    yield from create_blog_post_from_youtube_streaming(youtube_url)
+    # Use default blog style if none provided
+    blog_style_url = blog_style_url.strip() if blog_style_url and blog_style_url.strip() else "https://julianagabriel.com.br/blog/"
+    
+    yield from create_blog_post_from_youtube_streaming(youtube_url, blog_style_url)
 
 # --- Example Usage ---
 if __name__ == "__main__":
     # Create Gradio interface
     with gr.Blocks(theme="soft") as demo:
         gr.Markdown("# Conversor de YouTube para Blog Post")
-        gr.Markdown("Cole a URL de um vídeo do YouTube para gerar um post de blog baseado na transcrição.")
+        gr.Markdown("Cole a URL de um vídeo do YouTube e opcionalmente uma URL de blog para o estilo de escrita.")
         
         with gr.Row():
             youtube_url = gr.Textbox(
@@ -166,13 +171,21 @@ if __name__ == "__main__":
                 placeholder="https://www.youtube.com/watch?v=...",
                 show_label=True
             )
+            
+        with gr.Row():
+            blog_style_url = gr.Textbox(
+                label="URL do Blog de Referência (opcional)",
+                placeholder="https://exemplo.com/blog/",
+                show_label=True,
+                value="https://julianagabriel.com.br/blog/"  # Default value
+            )
         
         with gr.Row():
             submit_btn = gr.Button("Gerar Post de Blog")
         
         output = gr.Markdown(label="Post de Blog Gerado")
         
-        submit_btn.click(fn=process_url_streaming, inputs=youtube_url, outputs=output)
+        submit_btn.click(fn=process_url_streaming, inputs=[youtube_url, blog_style_url], outputs=output)
     
     # Launch the interface
     demo.launch()
